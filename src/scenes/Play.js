@@ -12,7 +12,17 @@ class Play extends Phaser.Scene {
         this.load.spritesheet('explosion', './assets/explosion.png', {frameWidth: 64, frameHeight: 32, startFrame: 0, endFrame: 9});
     }
 
-    create() {
+    create(time, delta) {
+        //variables
+        startTime = time;
+        this.currentPlayTimeSec = Math.floor(game.settings.gameTimer / 1000); //gameTimer in seconds
+        this.music = this.sound.add('backgroundMusic'); //Background music variable
+        this.maxPlayTime = game.settings.gameTimer / 1000;
+
+        //play background music
+
+        this.music.play();
+        
         //Place Tile Sprite
         this.starfield = this.add.tileSprite(0, 0, 640, 480, "starfield").setOrigin(0,0);
 
@@ -36,6 +46,8 @@ class Play extends Phaser.Scene {
         keyF = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.F);
         keyLEFT = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.LEFT);
         keyRIGHT = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.RIGHT);
+        keyUP = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.UP);
+        keyDOWN = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.DOWN);
 
         // animation config
         this.anims.create({
@@ -46,6 +58,7 @@ class Play extends Phaser.Scene {
 
         this.p1Score = 0;
         // score display
+
         let scoreConfig = {
             fontFamily: 'Courier',
             fontSize: '28px',
@@ -60,23 +73,72 @@ class Play extends Phaser.Scene {
         }
         this.scoreLeft = this.add.text(69, 54, this.p1Score, scoreConfig);
 
+        //Time Display
+        let timeConfig = {
+            fontFamily: 'Courier',
+            fontSize: '14px',
+            backgroundColor: '#F3B141',
+            color: '#843605',
+            align: 'right',
+            padding: {
+                top: 5,
+                bottom: 5,
+            },
+        }
+        this.timeDisplay = this.add.text(411, 44, 'TIME LEFT: ' + this.currentPlayTimeSec, timeConfig);
+
+        //Highscore Display
+        this.highScoreDisplay = this.add.text(411, 74, 'HIGH SCORE: ' + highScore, timeConfig)
+
+        // Fire display
+        let fireConfig = {
+            fontFamily: 'Courier',
+            fontSize: '28px',
+            backgroundColor: '#ff0000',
+            color: '#ffffff',
+            align: 'center',
+            padding: {
+                top: 5,
+                bottom: 5,
+            },
+            fixedWidth: 100
+        }
+        this.fireText = this.add.text(269, 54, 'Fire', fireConfig);
+
         // game over flag
         this.gameOver = false;
 
-        // 60-second play clock
         scoreConfig.fixedWidth = 0;
-        this.clock = this.time.delayedCall(game.settings.gameTimer, () => {
-            this.add.text(game.config.width/2, game.config.height/2, 'GAME OVER', scoreConfig).setOrigin(0.5);
-            this.add.text(game.config.width/2, game.config.height/2 + 64, '(F)ire to Restart', scoreConfig).setOrigin(0.5);
-            this.gameOver = true;
-        }, null, this);
     }
 
 
-    update() {
+    update(time, delta) {
+        //game over timer
+        var timeElapsed = Math.floor(time - startTime);
+        this.currentPlayTimeSec = this.maxPlayTime - Math.floor(timeElapsed / 1000);
+        if (!this.gameOver){
+            this.timeDisplay.text = 'TIME LEFT: ' + this.currentPlayTimeSec;
+        }
+
+        //update HIGH SCORE
+        if (this.p1Score > highScore) {
+            let timeConfig = {
+                fontFamily: 'Courier',
+                fontSize: '14px',
+                backgroundColor: '#F3B141',
+                color: '#843605',
+                align: 'right',
+                padding: {
+                    top: 5,
+                    bottom: 5,
+                },
+            }
+            highScore = this.p1Score;
+            this.highScoreDisplay = this.add.text(411, 74, 'HIGH SCORE: ' + highScore, timeConfig)
+        }
         // check key input for restart
         if (this.gameOver && Phaser.Input.Keyboard.JustDown(keyF)) {
-            this.scene.restart(this.p1Score);
+            this.scene.start("playScene", time);
         }
 
         //scroll starfields
@@ -89,19 +151,56 @@ class Play extends Phaser.Scene {
             this.ship03.update();
         }
 
+        //Hide/Show fireDisplay
+        if (!this.p1Rocket.isFiring) {
+            this.fireText.visible = false;
+        }
+        if (this.p1Rocket.isFiring) {
+            this.fireText.visible = true;
+        }
+
         // check collisions
         if(this.checkCollision(this.p1Rocket, this.ship03)) {
             this.p1Rocket.reset();
             this.shipExplode(this.ship03);
+            this.maxPlayTime += 1;
+            this.currentPlayTimeSec = this.maxPlayTime - Math.floor(timeElapsed / 1000);
+            this.timeDisplay.text = 'TIME LEFT: ' + this.currentPlayTimeSec;
         }
         if (this.checkCollision(this.p1Rocket, this.ship02)) {
             this.p1Rocket.reset();
             this.shipExplode(this.ship02);
+            this.maxPlayTime += 2;
+            this.currentPlayTimeSec = this.maxPlayTime - Math.floor(timeElapsed / 1000);
+            this.timeDisplay.text = 'TIME LEFT: ' + this.currentPlayTimeSec;
         }
         if (this.checkCollision(this.p1Rocket, this.ship01)) {
             this.p1Rocket.reset();
             this.shipExplode(this.ship01);
+            this.maxPlayTime += 3;
+            this.currentPlayTimeSec = this.maxPlayTime - Math.floor(timeElapsed / 1000);
+            this.timeDisplay.text = 'TIME LEFT: ' + this.currentPlayTimeSec;
         }
+
+        //Game Over
+        if(this.currentPlayTimeSec == 0) {
+            this.music.stop();
+            let scoreConfig = {
+                fontFamily: 'Courier',
+                fontSize: '28px',
+                backgroundColor: '#F3B141',
+                color: '#843605',
+                align: 'right',
+                padding: {
+                    top: 5,
+                    bottom: 5,
+                },
+            }
+            this.add.text(game.config.width/2, game.config.height/2, 'GAME OVER', scoreConfig).setOrigin(0.5);
+            this.add.text(game.config.width/2, game.config.height/2 + 64, '(F)ire to Restart', scoreConfig).setOrigin(0.5);
+            this.gameOver = true;
+        }
+
     }
 
     checkCollision(rocket, ship) {

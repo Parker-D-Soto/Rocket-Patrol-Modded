@@ -2,7 +2,7 @@ let config = {
     type: Phaser.CANVAS,
     width: 640,
     height: 480,
-    scene: [Menu, Play]
+    scene: [Menu, Play, Audio]
 };
 
 let game = new Phaser.Game(config);
@@ -13,5 +13,5 @@ game.settings = {
 }
 
 //reserve some keyboard variables
-let keyF, keyLEFT, keyRIGHT;
+let keyF, keyLEFT, keyRIGHT, keyUP, keyDOWN, startTime, highScore = 0;
 
